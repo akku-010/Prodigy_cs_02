@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Encryption Tool</title>
+</head>
+<body>
+    <h1>Simple Image Encryption Tool</h1>
+    <input type="file" id="upload" accept="image/*"><br>
+    <canvas id="canvas" style="display:none;"></canvas><br>
+    <button onclick="encryptImage()">Encrypt Image</button>
+    <button onclick="decryptImage()">Decrypt Image</button><br>
+    <img id="result" alt="Result Image">
+
+    <script>
+        let originalImageData;
+        let encryptedImageData;
+        let shufflePattern;
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const result = document.getElementById('result');
+
+        document.getElementById('upload').addEventListener('change', (e) => {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    originalImageData = ctx.getImageData(0, 0, img.width, img.height);
+                }
+                img.src = event.target.result;
+            }
+            reader.readAsDataURL(e.target.files[0]);
+        });
+
+        function generateShufflePattern(width, height) {
+            const pattern = [];
+            for (let i = 0; i < width * height; i++) {
+                pattern.push(i);
+            }
+            // Shuffle the pattern array
+            for (let i = pattern.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [pattern[i], pattern[j]] = [pattern[j], pattern[i]];
+            }
+            return pattern;
+        }
+
+        function applyShufflePattern(imageData, pattern) {
+            const data = imageData.data;
+            const width = imageData.width;
+            const height = imageData.height;
+            const shuffledData = new Uint8ClampedArray(data.length);
+            for (let i = 0; i < pattern.length; i++) {
+                const srcIndex = pattern[i] * 4;
+                const destIndex = i * 4;
+                shuffledData[destIndex] = data[srcIndex];
+                shuffledData[destIndex + 1] = data[srcIndex + 1];
+                shuffledData[destIndex + 2] = data[srcIndex + 2];
+                shuffledData[destIndex + 3] = data[srcIndex + 3];
+            }
+            return new ImageData(shuffledData, width, height);
+        }
+
+        function encryptImage() {
+            if (!originalImageData) return;
+            shufflePattern = generateShufflePattern(originalImageData.width, originalImageData.height);
+            encryptedImageData = applyShufflePattern(originalImageData, shufflePattern);
+            ctx.putImageData(encryptedImageData, 0, 0);
+            result.src = canvas.toDataURL();
+            result.style.display = 'block';
+        }
+
+        function decryptImage() {
+            if (!encryptedImageData || !shufflePattern) return;
+            const reversePattern = new Array(shufflePattern.length);
+            for (let i = 0; i < shufflePattern.length; i++) {
+                reversePattern[shufflePattern[i]] = i;
+            }
+            const decryptedImageData = applyShufflePattern(encryptedImageData, reversePattern);
+            ctx.putImageData(decryptedImageData, 0, 0);
+            result.src = canvas.toDataURL();
+            result.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
